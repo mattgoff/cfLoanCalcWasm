@@ -1,0 +1,320 @@
+﻿@page "/"
+@using cfLoanCalcWasm.Models
+
+<div class="text-center">
+    <h1 class="display-4 textOrange" style="font-family: 'Pacifico', cursive; font-size: 150px;">CF Loan Calc</h1>
+    <a class="textOrange" href="https://github.com/mattgoff/cfLoanCalc2" target="_"> - GitHub Repo Link - </a>
+</div>
+
+<br /> <br />
+
+<div class="container">
+    <div class="row">
+        <div class="col-sm-2">
+            <EditForm Model="newLoanData" OnValidSubmit="@CalcLoanInfo" Context="loanData">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="form-group">
+                    <label for="loanamount" class="labelMargins">Loan Amount: </label> <br/>
+                    <InputNumber id="loanamount" @bind-Value="newLoanData.LoanAmount" />
+                    <br />
+                    <label for="loanterm" class="labelMargins">Loan Term (Months):</label><br/>
+                    <InputNumber id="loanterm" @bind-Value="newLoanData.LoanTermLength" />
+                    <br />
+                    <label for="loanapr" class="labelMargins">Loan Interest Rate:</label><br/>
+                    <InputNumber id="loanapr" @bind-Value="newLoanData.LoanInterestRate" />
+                </div>
+                <button class="btn btn-primary btm-sm">Calculate</button>
+            </EditForm>
+        </div>
+
+        @if (hasRun)
+        {
+            <div class="col-sm-2">
+                <EditForm Model="newLoanData" OnValidSubmit="@CalcWhatIfInfo" Context="proposedLoan">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+                    <div class="form-group">
+                        <label for="proposedloanamount" class="labelMargins">Loan Amount: </label><br/>
+                        <InputNumber id="proposedloanamount" @bind-Value="newLoanData.ProposedLoanAmount" />
+                        <br />
+                        <label for="proposedloanterm" class="labelMargins">Loan Term (Months):</label><br/>
+                        <InputNumber id="proposedloanterm" @bind-Value="newLoanData.ProposedLoanTermLength" />
+                        <br />
+                        <label for="proposedloanapr" class="labelMargins">Loan Interest Rate:</label><br/>
+                        <InputNumber id="proposedloanapr" @bind-Value="newLoanData.ProposedLoanInterestRate" />
+                        <br />
+                        <label for="proposedaddextra" class="labelMargins">Extra Per Month:</label><br/>
+                        <InputNumber id="proposedaddextra" @bind-Value="newLoanData.ProposedAddAExtra" />
+                    </div>
+                    <button class="btn btn-primary btm-sm">What if</button>
+                </EditForm>
+            </div>
+
+            <div class="col-sm-8">
+            @if (newLoanData.LoanSchedule != null)
+            {
+                    <table class="table table-striped table-hover table-borderless table-sm">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="text-center textOrange"></th>
+                                <th class="text-center textOrange">Principal</th>
+                                <th class="text-center textOrange">Interest</th>
+                                <th class="text-center textOrange">Total</th>
+                                <th class="text-center textOrange">Term</th>
+                                <th class="text-center textOrange">Monthly Payment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-center textOrange">Original</td>
+                                <td class="text-center textOrange">@newLoanData.LoanAmount.ToString("N2")</td>
+                                <td class="text-center textOrange">@InterestTotal.ToString("N2")</td>
+                                <td class="text-center textOrange">@(ActualPaymentsTotal.ToString("N2"))</td>
+                                <td class="text-center textOrange">@(newLoanData.LoanTermLength.ToString("N0"))</td>
+                                <td class="text-center textOrange">@(newLoanData.LoanSchedule[0].paymentAMT.ToString("N2"))</td>
+                            </tr>
+                            @if (newLoanData.ProposedSchedule != null)
+                            {
+                                <tr>
+                                    <td class="text-center textOrange">What If</td>
+                                    <td class="text-center textOrange">@newLoanData.ProposedLoanAmount.ToString("N2")</td>
+                                    <td class="text-center textOrange">@ProposedInterestTotal.ToString("N2")</td>
+                                    <td class="text-center textOrange">@((newLoanData.ProposedLoanAmount + ProposedInterestTotal).ToString("N2"))</td>
+                                    <td class="text-center textOrange">@(newLoanData.ProposedLoanTermLength.ToString("N0"))</td>
+                                    <td class="text-center textOrange">@(newLoanData.ProposedSchedule[0].paymentAMT.ToString("N2"))</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center textOrange">Change</td>
+                                    <td class="text-center textOrange">@((newLoanData.ProposedLoanAmount - newLoanData.LoanAmount).ToString("N2"))</td>
+                                    <td class="text-center textOrange">@((ProposedInterestTotal - InterestTotal).ToString("N2"))</td>
+                                    <td class="text-center textOrange">@(((newLoanData.ProposedLoanAmount + ProposedInterestTotal) - ActualPaymentsTotal).ToString("N2"))</td>
+                                    <td class="text-center textOrange">@((newLoanData.ProposedLoanTermLength - newLoanData.LoanTermLength).ToString("N0"))</td>
+                                    <td class="text-center textOrange">@((newLoanData.ProposedSchedule[0].paymentAMT - newLoanData.LoanSchedule[0].paymentAMT).ToString("N2"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (newLoanData.ProposedSchedule != null)
+                        {
+                            <span>What If Report</span>
+                            <br />
+                            @* @if (newLoanData.ProposedLoanInterestRate != newLoanData.LoanInterestRate)
+                            {
+                                <span>A "what if" interest rate of @newLoanData.ProposedLoanInterestRate will result in a @(newLoanData.ProposedLoanInterestRate > newLoanData.LoanInterestRate ? "extra cost" : "savings") of @(Math.Abs(ProposedInterestTotal - InterestTotal).ToString("N2")) over the term of this loan.</span><br />
+                            } *@
+                            @if (newLoanData.ProposedLoanTermLength != newLoanData.LoanTermLength)
+                            {
+                                <span class="textOrange">• A term length of @newLoanData.ProposedLoanTermLength months will result in a @(ProposedActualPaymentsTotal > ActualPaymentsTotal ? "extra cost" : "savings") of $@(Math.Abs(ProposedActualPaymentsTotal - ActualPaymentsTotal).ToString("N2")) over the term of this loan.</span><br />
+                            }
+                            @if (newLoanData.ProposedSchedule[0].paymentAMT != newLoanData.LoanSchedule[0].paymentAMT)
+                            {
+                                <span class="textOrange">• Due to this change your payment will @(newLoanData.ProposedSchedule[0].paymentAMT > newLoanData.LoanSchedule[0].paymentAMT ? "increase" : "decrease") by $@(Math.Abs(newLoanData.ProposedSchedule[0].paymentAMT - newLoanData.LoanSchedule[0].paymentAMT).ToString("N2")) to: $@((newLoanData.ProposedSchedule[0].paymentAMT).ToString("N2")) per month.</span><br />
+                            }
+                            @if (ProposedActualPaymentsTotal != ActualPaymentsTotal && ProposedInterestTotal - InterestTotal > 0)
+                            {
+                                <span class="textOrange">• Over the life of this loan the total amount paid to the bank will @(ProposedActualPaymentsTotal > ActualPaymentsTotal ? "increase" : "decrease") by $@(Math.Abs(ProposedActualPaymentsTotal - ActualPaymentsTotal).ToString("N2"))</span><br />
+                            }
+                            @if (ProposedInterestTotal - InterestTotal < 0)
+                            {
+                                <span class="textOrange">• By adding $@newLoanData.ProposedAddAExtra per month you will save yourself @(Math.Abs(ProposedInterestTotal - InterestTotal).ToString("N2")) in interest and will complete the loan @(newLoanData.LoanTermLength - newLoanData.ProposedSchedule.Count()) months early.</span>
+                            }
+
+                        }
+                }
+            </div>
+        }
+        else
+        {
+            <div class="col-sm-1"></div>
+            <div class="col-sm-6">
+            <br /><br />
+            <p>Enter your loan data to the left and click on calculate.</p>
+            <p>After your loan has been calculated you'll have the option to adjust your loan by changing the loan parameters and then comparing the "what if scenario" with your original loan value</p>
+            </div>
+        }
+    </div>
+</div>
+<br />
+
+<div class="row">
+    <div class="col-sm-2"></div>
+    <div class="col-sm-8">
+        @if (newLoanData.LoanSchedule != null)
+        {
+            <div>
+                <table class="table table-striped table-hover table-borderless table-sm">
+                <thead class="thead-light">
+                    <tr>
+                        <th class="text-center textOrange">Payment No.</th>
+                        <th class="text-center textOrange">Payment</th>
+                        <th class="text-center textOrange">Principal</th>
+                        <th class="text-center textOrange">Interest</th>
+                        <th class="text-center textOrange">Total Interest</th>
+                        <th class="text-center textOrange">Balance</th>
+                    </tr>
+                </thead>
+                    <tbody>
+                            @foreach (var item in shortenedList)
+                            {
+                                <tr>
+                                    <td class="text-center textOrange">@item.paymentNumber</td>
+                                    <td class="text-center textOrange">@item.paymentAMT.ToString("N2")</td>
+                                    <td class="text-center textOrange">@item.principalAMT.ToString("N2")</td>
+                                    <td class="text-center textOrange">@item.interestAMT.ToString("N2")</td>
+                                    <td class="text-center textOrange">@item.interestTotal.ToString("N2")</td>
+                                    <td class="text-center textOrange">@item.loanBalance.ToString("N2")</td>
+                                </tr>
+                            }
+                    </tbody>
+                </table>
+
+                @if (showBackward)
+                {
+                    <button class="btn btn-primary btm-sm" @onclick="@Previous">Previous</button>
+                }
+
+                @if (showForward)
+                {
+                    <button class="btn btn-primary btm-sm" @onclick="@Next">Next</button>
+                }
+
+            </div>
+        }
+    </div>
+    <div class="col-sm-2"></div>
+</div>
+
+@code {
+    private int currentIndex = 0;
+    private int stepIndex = 15;
+    private bool showForward = true;
+    private bool showBackward = false;
+    private NewLoanDataModel newLoanData = new NewLoanDataModel();
+    private List<MonthData> shortenedList = new List<MonthData>();
+    private bool hasRun = false;
+    private double InterestTotal;
+    private double ActualPaymentsTotal;
+    private double ProposedInterestTotal;
+    private double ProposedActualPaymentsTotal;
+
+    protected override void OnInitialized()
+    {
+        newLoanData.LoanAmount = 189000;
+        newLoanData.LoanInterestRate = 2.875;
+        newLoanData.LoanTermLength = 33;
+    }
+    private void CalcWhatIfInfo()
+    {
+        System.Console.WriteLine("Someone Hit the button, time to calc a loan");
+
+        newLoanData.ProposedSchedule = new List<MonthData>();
+
+        int paymentNumber = 1;
+
+        double MonthlyInterestRate = (newLoanData.ProposedLoanInterestRate / 100) / 12;
+        double MonthlyPaymentAmount = newLoanData.ProposedLoanAmount * ( MonthlyInterestRate + ( MonthlyInterestRate / ( Math.Pow((1 + MonthlyInterestRate), newLoanData.ProposedLoanTermLength) -1 ) ) );
+        double LoanBalance = newLoanData.ProposedLoanAmount;
+        ProposedInterestTotal = 0;
+        ProposedActualPaymentsTotal = 0;
+
+        while (paymentNumber <= newLoanData.ProposedLoanTermLength && LoanBalance > 0)
+        {
+            var newMonth = new MonthData();
+
+            newMonth.paymentAMT = MonthlyPaymentAmount;
+            newMonth.paymentNumber = paymentNumber;
+            newMonth.interestAMT = LoanBalance * MonthlyInterestRate;
+            newMonth.principalAMT = newMonth.paymentAMT - newMonth.interestAMT;
+            newMonth.interestTotal = InterestTotal + newMonth.interestAMT;
+            newMonth.loanBalance = LoanBalance - (newMonth.principalAMT + newLoanData.ProposedAddAExtra);
+
+            ProposedInterestTotal += newMonth.interestAMT;
+            ProposedActualPaymentsTotal += newMonth.paymentAMT;
+            LoanBalance = newMonth.loanBalance;
+            paymentNumber += 1;
+
+            newLoanData.ProposedSchedule.Add(newMonth);
+        }
+    }
+
+    private void CalcLoanInfo()
+    {
+        System.Console.WriteLine("Going to run a what if scenario");
+
+        newLoanData.LoanSchedule = new List<MonthData>();
+
+        hasRun = true;
+        int paymentNumber = 1;
+
+        double MonthlyInterestRate = (newLoanData.LoanInterestRate / 100) / 12;
+        double MonthlyPaymentAmount = newLoanData.LoanAmount * ( MonthlyInterestRate + ( MonthlyInterestRate / ( Math.Pow((1 + MonthlyInterestRate), newLoanData.LoanTermLength) -1 ) ) );
+        double LoanBalance = newLoanData.LoanAmount;
+        InterestTotal = 0;
+        ActualPaymentsTotal = 0;
+
+        while (paymentNumber <= newLoanData.LoanTermLength)
+        {
+            var newMonth = new MonthData();
+
+            newMonth.paymentAMT = MonthlyPaymentAmount;
+            newMonth.paymentNumber = paymentNumber;
+            newMonth.interestAMT = LoanBalance * MonthlyInterestRate;
+            newMonth.principalAMT = newMonth.paymentAMT - newMonth.interestAMT;
+            newMonth.interestTotal = InterestTotal + newMonth.interestAMT;
+            newMonth.loanBalance = LoanBalance - newMonth.principalAMT;
+
+            InterestTotal += newMonth.interestAMT;
+            ActualPaymentsTotal += newMonth.paymentAMT;
+            LoanBalance = newMonth.loanBalance;
+            paymentNumber += 1;
+
+            newLoanData.LoanSchedule.Add(newMonth);
+        }
+
+        shortenedList = newLoanData.LoanSchedule.GetRange(0, 15);
+
+        newLoanData.ProposedLoanAmount = newLoanData.LoanAmount;
+        newLoanData.ProposedLoanInterestRate = newLoanData.LoanInterestRate;
+        newLoanData.ProposedLoanTermLength = newLoanData.LoanTermLength;
+
+    }
+
+    private void Next()
+    {
+        currentIndex += stepIndex;
+
+        if (currentIndex + stepIndex > newLoanData.LoanTermLength - 1)
+        {
+            shortenedList = newLoanData.LoanSchedule.GetRange(currentIndex, Convert.ToInt32(newLoanData.LoanTermLength) - (currentIndex));
+            showForward = false;
+            @* currentIndex = Convert.ToInt32(newLoanData.LoanTermLength); *@
+        }
+        else
+        {
+            showForward = true;
+            showBackward = true;
+            shortenedList = newLoanData.LoanSchedule.GetRange(currentIndex, stepIndex);
+        }
+        System.Console.WriteLine($"Index {currentIndex}  Step {stepIndex}");
+
+    }
+
+    private void Previous()
+    {
+        currentIndex -= stepIndex;
+
+        if (currentIndex -15 < 0)
+        {
+            currentIndex = 0;
+            shortenedList = newLoanData.LoanSchedule.GetRange(0, stepIndex);
+            showBackward = false;
+        }
+        else
+        {
+            showForward = true;
+            shortenedList = newLoanData.LoanSchedule.GetRange(currentIndex, stepIndex);
+        }
+        System.Console.WriteLine($"Index {currentIndex}  Step {stepIndex}");
+    }
+}
