@@ -170,25 +170,47 @@
                     </tbody>
                 </table>
 
-                @if (showBackward)
-                {
-                    <button class="btn btn-primary btm-sm" @onclick="@Previous">Previous</button>
-                }
 
-                @if (showForward)
-                {
-                    <button class="btn btn-primary btm-sm" @onclick="@Next">Next</button>
-                }
+                <div class="input-group">
+
+                    @if (showBackward)
+                    {
+                        <button style="margin-right: 10px" class="btn btn-primary btm-sm" @onclick="@Previous">Previous</button>
+                    }
+
+                    @if (showForward)
+                    {
+                        <button style="margin-right: 10px;" class="btn btn-primary btm-sm" @onclick="@Next">Next</button>
+                    }
+
+                    @if (showBackward || showForward)
+                    {
+                        <EditForm Model="selectNumberPerPage" Context="pageCount">
+                            <InputSelect class="custom-select"
+                                        ValueExpression="@(()=>selectNumberPerPage)"
+                                        Value="@selectNumberPerPage"
+                                        ValueChanged="@((string value) => OnValueChanged(value ))">
+                                    <option value="">Per Page</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                    <option value="40">40</option>
+                                    <option value="50">50</option>
+                            </InputSelect>
+                        </EditForm>
+                    }
+                </div>
 
             </div>
         }
     </div>
     <div class="col-sm-2"></div>
+
 </div>
 
 @code {
+    private string selectNumberPerPage;
     private int currentIndex = 0;
-    private int stepIndex = 15;
+    private int stepIndex;
     private bool showForward = true;
     private bool showBackward = false;
     private NewLoanDataModel newLoanData = new NewLoanDataModel();
@@ -241,7 +263,8 @@
 
     private void CalcLoanInfo()
     {
-        System.Console.WriteLine("Going to run a what if scenario");
+        selectNumberPerPage = "10";
+        stepIndex = 10;
 
         newLoanData.LoanSchedule = new List<MonthData>();
 
@@ -273,12 +296,41 @@
             newLoanData.LoanSchedule.Add(newMonth);
         }
 
-        shortenedList = newLoanData.LoanSchedule.GetRange(0, 15);
+        if (newLoanData.LoanTermLength >= stepIndex)
+        {
+            GenerateSchedulePage(stepIndex);
+        }
+        else
+        {
+            GenerateSchedulePage(Convert.ToInt32(newLoanData.LoanTermLength));
+        }
 
         newLoanData.ProposedLoanAmount = newLoanData.LoanAmount;
         newLoanData.ProposedLoanInterestRate = newLoanData.LoanInterestRate;
         newLoanData.ProposedLoanTermLength = newLoanData.LoanTermLength;
+        newLoanData.ProposedAddAExtra = 0;
+        newLoanData.ProposedSchedule = null;
+    }
 
+     private Task OnValueChanged(string value)
+    {
+        selectNumberPerPage = value;
+        Console.WriteLine($"Select value = {selectNumberPerPage}");
+        stepIndex = Convert.ToInt32(value);
+        if (stepIndex > newLoanData.LoanTermLength )
+        {
+            shortenedList = newLoanData.LoanSchedule.GetRange(0, Convert.ToInt32(newLoanData.LoanTermLength));
+        }
+        else
+        {
+            shortenedList = newLoanData.LoanSchedule.GetRange(0, Convert.ToInt32(selectNumberPerPage));
+        }
+        return Task.CompletedTask;
+    }
+
+    private void GenerateSchedulePage(int pageLength = 15)
+    {
+        shortenedList = newLoanData.LoanSchedule.GetRange(0,pageLength);
     }
 
     private void Next()
@@ -289,6 +341,7 @@
         {
             shortenedList = newLoanData.LoanSchedule.GetRange(currentIndex, Convert.ToInt32(newLoanData.LoanTermLength) - (currentIndex));
             showForward = false;
+            showBackward = true;
             @* currentIndex = Convert.ToInt32(newLoanData.LoanTermLength); *@
         }
         else
@@ -305,11 +358,12 @@
     {
         currentIndex -= stepIndex;
 
-        if (currentIndex -15 < 0)
+        if (currentIndex -1 * stepIndex < 0)
         {
             currentIndex = 0;
             shortenedList = newLoanData.LoanSchedule.GetRange(0, stepIndex);
             showBackward = false;
+            showForward = true;
         }
         else
         {
